@@ -139,8 +139,8 @@ int main(int, char**)
 	#endif
 
 	// Set the resolution (adjust to your camera's supported resolution)
-	int frameWidth = 1024;
-	int frameHeight = 600;
+	int frameWidth = 854;
+	int frameHeight = 480;
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, frameWidth);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, frameHeight);
 
@@ -243,6 +243,7 @@ int main(int, char**)
 
 		#define FPS_OUTPUT
 		#if defined FPS_OUTPUT || defined _DEBUG
+		printf("FPS: %d\n", fps);
 		//FPS-Ausgabe oben rechts
 		char fps_char[3];
 		sprintf(fps_char, "%d", fps);
