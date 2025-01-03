@@ -139,8 +139,8 @@ int main(int, char**)
 	#endif
 
 	// Set the resolution (adjust to your camera's supported resolution)
-	int frameWidth = 854;
-	int frameHeight = 480;
+	int frameWidth = 1024;
+	int frameHeight = 600;
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, frameWidth);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, frameHeight);
 
