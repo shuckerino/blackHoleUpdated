@@ -1,17 +1,5 @@
-/*****************************************************************
-*	File...:	camDemo.cpp
-*	Purpose:	video processing
-*	Date...:	30.09.2019
-*	Changes:	16.10.2024 mouse events
-*
-*********************************************************************/
-
 #include "camDemo.h"
 
-/* --------------------------------------------------------------
- * mouse_event()
- * openCV-Funktion um MouseEvents auszuwerten
- *----------------------------------------------------------------*/
 void mouse_event(int evt, int x, int y, int, void* param)
 {
 	MouseParams* mp = (MouseParams*)param;
@@ -20,17 +8,13 @@ void mouse_event(int evt, int x, int y, int, void* param)
 	mp->mouse_pos.y = y; //Mouse y-Position
 }
 
-
-/* --------------------------------------------------------------
- * click_left()
- *----------------------------------------------------------------*/
 bool click_left(MouseParams mp, char* folder)
 {
 	if (mp.evt == EVENT_LBUTTONDOWN)
 	{
 		{
 			char path[512];
-			sprintf_s(path, "%s/click_on_button.wav", folder);
+			sprintf_s(path, "%s/black_hole.wav", folder);
 			PlaySoundA(path, NULL, SND_ASYNC);
 			return true;
 		}
@@ -38,10 +22,6 @@ bool click_left(MouseParams mp, char* folder)
 	return false;
 }
 
-/* --------------------------------------------------------------
- * click_in_rect()
- * Wurde in einen bestimmten Bereich mit links geklickt?
- *----------------------------------------------------------------*/
 bool click_in_rect(MouseParams mp, Rect rect, char* folder)
 {
 	if (mp.evt == EVENT_LBUTTONDOWN)
@@ -52,7 +32,7 @@ bool click_in_rect(MouseParams mp, Rect rect, char* folder)
 			mp.mouse_pos.y <= rect.y + rect.height)
 		{
 			char path[512];
-			sprintf_s(path, "%s/click_on_button.wav", folder);
+			sprintf_s(path, "%s/black_hole.wav", folder);
 			PlaySoundA(path, NULL, SND_ASYNC);
 			return true;
 		}
@@ -60,10 +40,6 @@ bool click_in_rect(MouseParams mp, Rect rect, char* folder)
 	return false;
 }
 
-/* --------------------------------------------------------------
- * mouse_in_rect()
- * Wurde Mauszeiger in einen bestimmten Bereich bewegt?
- *----------------------------------------------------------------*/
 bool mouse_in_rect(MouseParams mp, Rect rect)
 {
 	if (mp.evt == EVENT_MOUSEMOVE)
@@ -79,39 +55,19 @@ bool mouse_in_rect(MouseParams mp, Rect rect)
 	return false;
 }
 
-
-/*---------------------------------------------------------------
-* main()
-*---------------------------------------------------------------*/
 int main(int, char**)
 {
-	/* check memory usage
-*  see https://msdn.microsoft.com/de-de/library/x98tx3cf.aspx
-*/
-//_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
-//_CrtSetReportMode( _CRT_ERROR, _CRTDBG_MODE_DEBUG );
-//_CrtSetBreakAlloc( 1358);
-
-/* 1015 steht hier für eine Speicherbelegungsnummer, welche
- * in {}-Klammern im Memory-Report ausgegeben wurde. Bei erneuter
- * Ausführung unterbricht das Programm dann an der Stelle, an dem
- * der jeweilige Speicher allokiert wurde.
- */
-
- /* check for two different folders: correct folder depends on where executable is started
- * either from IDE or bin folder */
 	const char* folder1 = "Resources";
 	const char* folder2 = "../Resources";
 	char folder[15], path[512];
 
-	MouseParams mp; // Le-Wi: Zur Auswertung von Mouse-Events
+	MouseParams mp;
 	Scalar colour;
-	Mat	cam_img; //eingelesenes Kamerabild
-	Mat cam_img_grey; //Graustufenkamerabild für autom. Startgesichtfestlegung
-	Mat strElement; //Strukturelement für Dilatations-Funktion
-	Mat3b rgb_scale;	// leerer Bildkontainer für RGB-Werte
-	char* windowGameOutput = "camDemo"; // Name of window
-	//double	scale = 1.0;				// Skalierung der Berechnungsmatrizen 
+	Mat	cam_img;
+	Mat cam_img_grey;
+	Mat strElement;
+	Mat3b rgb_scale;
+	char* windowGameOutput = "Black Hole Effect - BiVa1"; // Name of window
 	unsigned int width, height, channels, stride;	// Werte des angezeigten Bildes
 	int
 		key = 0,	// Tastatureingabe
@@ -159,14 +115,14 @@ int main(int, char**)
 	else
 	{
 		/* some infos on console	*/
-		//printf( "==> Program Control <==\n");
-		//printf( "==                   ==\n");
-		//printf( "* Start Screen\n");
-		//printf( " - 'ESC' stop the program \n");
-		//printf( " - 'p'   open the camera-settings panel\n");
-		//printf( " - 't'   toggle window size\n");
-		//printf( " - 'f'   toggle fullscreen\n");
-		//printf( " - 'ESC' return to Start Screen \n");
+		printf( "==> Program Control <==\n");
+		printf( "==                   ==\n");
+		printf( "* Start Screen\n");
+		printf( " - 'ESC' Stop the program \n");
+		printf( " - 'm'   Increase speed of animation\n");
+		printf( " - 'l'   Decrease speed of animation\n");
+		printf( " - 'f'   Freeze animation\n");
+		printf( " - 's'   Stop animation\n");
 	}
 	{
 		HWND console = GetConsoleWindow();
@@ -208,16 +164,16 @@ int main(int, char**)
 	{
 		FILE* in = NULL;
 		strcpy_s(folder, folder1);/* try first folder */
-		sprintf_s(path, "%s/click_on_button.wav", folder);
+		sprintf_s(path, "%s/black_hole.wav", folder);
 		in = fopen(path, "r");
 		if (in == NULL)
 		{
 			strcpy_s(folder, folder2); /* try other folder */
-			sprintf_s(path, "%s/click_on_button.wav", folder);
+			sprintf_s(path, "%s/black_hole.wav", folder);
 			in = fopen(path, "r");
 			if (in == NULL)
 			{
-				printf("Ressources cannot be found\n");
+				printf("Resources cannot be found\n");
 				exit(99);
 			}
 		}
@@ -300,24 +256,20 @@ int main(int, char**)
 		// Vollbildschirm ein- bzw. ausschalten
 		if (key == 'f')
 		{
-			//if (!fullscreen_flag)
-			//{
-			//	//skaliere fenster auf vollbild
-			//	cvSetWindowProperty( windowGameOutput, WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-			//	fullscreen_flag = true;
-			//}
-			//else
-			//{
-			//	//setzte fenster auf original-größe
-			//	cvSetWindowProperty( windowGameOutput, WINDOW_NORMAL, WINDOW_NORMAL);	
-			//	fullscreen_flag = false;
-			//}
 			frozen = !frozen;
+			if (frozen)
+			{
+				PlaySound(NULL, NULL, 0); // cancel sound
+			}
+			else 
+			{
+				char path[512];
+				sprintf_s(path, "%s/black_hole.wav", folder);
+				PlaySoundA(path, NULL, SND_ASYNC);
+			}
 		}
 		if (key == 'm') /* toggle flag */
 		{
-			/*if (median_flag) median_flag = false;
-			else median_flag = true;*/
 			effectSpeed += 0.5f;
 		}
 		else if (key == 'l')
@@ -335,6 +287,7 @@ int main(int, char**)
 		else if (key == 's')
 		{
 			start_animation = false;
+			PlaySound(NULL, NULL, 0); // cancel sound
 		}
 
 		if (state == START_SCREEN)
