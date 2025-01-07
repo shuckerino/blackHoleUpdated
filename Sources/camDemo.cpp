@@ -138,9 +138,9 @@ int main(int, char**)
 	FreeConsole(); //Konsole ausschalten
 	#endif
 
-	// Set the resolution (adjust to your camera's supported resolution)
-	int frameWidth = 1024;
-	int frameHeight = 600;
+	// Set the resolution (16:9 to avoid black borders)
+	int frameWidth = 768;
+	int frameHeight = 450;
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, frameWidth);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, frameHeight);
 
@@ -431,7 +431,10 @@ void createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 				uchar green = static_cast<uchar>(brightness * 107);
 				uchar red = static_cast<uchar>(brightness * 252);
 
-				outputImage.at<cv::Vec3b>(y, x) = cv::Vec3b(blue, green, red);
+				uchar* pixelPtr = outputImage.ptr<uchar>(y); // Get pointer to the start of the row
+				pixelPtr[x * 3 + 0] = blue;  // Set the blue channel
+				pixelPtr[x * 3 + 1] = green; // Set the green channel
+				pixelPtr[x * 3 + 2] = red;   // Set the red channel
 			}
 		}
 	}
