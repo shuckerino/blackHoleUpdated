@@ -325,9 +325,15 @@ int main(int, char**)
 			if (!frozen)
 			{
 				float progress = (float)decrement_counter / initialCounter; // normalize (1.0 to 0.0)
-				float decrement = 1 + (1 - progress) * effectSpeed; // adjust to control the speed of the effect
-				decrement_counter -= (int)decrement;
-				increment_counter += 1;
+
+				// Adjust speed for both increment and decrement based on progress
+				float effect_speed = 1 + (1 - progress) * effectSpeed; // This is used for both increment and decrement
+
+				// Decrement counter, based on effect speed
+				decrement_counter -= (int)effect_speed;
+
+				// Increment counter, using the same effect speed to maintain consistent rate
+				increment_counter += (int)effect_speed + 2;
 
 				// make sure counter does not go below 0
 				if (decrement_counter < 0) decrement_counter = 0;
@@ -343,7 +349,7 @@ int main(int, char**)
 			//	start_animation = false;
 			//	PlaySound(NULL, NULL, 0); // cancel sound
 			//}
-			if (increment_counter > width)
+			if (increment_counter > width * 1.5)
 			{
 				start_animation = false;
 				PlaySound(NULL, NULL, 0); // cancel sound
@@ -464,10 +470,10 @@ bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 	float marginRadius = innerBlackCircleRadius + marginWidth;
 	float outerRadius = radius;
 
-	if (marginRadius > outerRadius)
-	{
-		return false;
-	}
+	//if (marginRadius > outerRadius)
+	//{
+	//	return false;
+	//}
 
 	for (int y = 0; y < rows; y++) {
 		for (int x = 0; x < cols; x++) {
