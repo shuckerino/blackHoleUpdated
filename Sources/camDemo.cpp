@@ -335,10 +335,15 @@ int main(int, char**)
 				scalingFactor += 0.025f; // increase the distortion
 			}
 
-			bool continueAnimation = createBlackHoleEffect(cam_img, mp.mouse_pos.x, mp.mouse_pos.y, decrement_counter, radiusMult, scalingFactor, 5, increment_counter);
+			bool continueAnimation = createBlackHoleEffect(cam_img, mp.mouse_pos.x, mp.mouse_pos.y, decrement_counter, radiusMult, scalingFactor, 40, increment_counter);
 
 			// end animation
-			if (continueAnimation == false)
+			//if (continueAnimation == false)
+			//{
+			//	start_animation = false;
+			//	PlaySound(NULL, NULL, 0); // cancel sound
+			//}
+			if (increment_counter > width)
 			{
 				start_animation = false;
 				PlaySound(NULL, NULL, 0); // cancel sound
@@ -455,11 +460,11 @@ bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 	// Create an output image initialized to black
 	cv::Mat outputImage = cv::Mat::zeros(inputImage.size(), CV_8UC3);
 
-	float innerBlackCircleRadius = counter / 5.0f;
+	float innerBlackCircleRadius = counter / 14.0f;
 	float marginRadius = innerBlackCircleRadius + marginWidth;
 	float outerRadius = radius;
 
-	if (marginRadius > outerRadius) 
+	if (marginRadius > outerRadius)
 	{
 		return false;
 	}
