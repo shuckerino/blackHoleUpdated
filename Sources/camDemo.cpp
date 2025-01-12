@@ -79,7 +79,7 @@ int main(int, char**)
 	bool flip_flag = true;
 	float scalingFactor = 1.0f;
 	float radiusMult = 1.0;
-	float effectSpeed = 1.5f;
+	float effectSpeed = 1.0f;
 	int decrement_counter = 0;
 	int increment_counter = 0;
 	int initialCounter;
@@ -140,8 +140,8 @@ int main(int, char**)
 	#endif
 
 	// Set the resolution (16:9 to avoid black borders)
-	int frameWidth = 1280;
-	int frameHeight = 720;
+	int frameWidth = 854;
+	int frameHeight = 480;
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, frameWidth);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, frameHeight);
 
@@ -301,7 +301,7 @@ int main(int, char**)
 		if (click_left(mp, folder))
 		{
 			start_animation = true;
-			initialCounter = width / 2 + 50;
+			initialCounter = width / 2;
 			decrement_counter = initialCounter;
 			increment_counter = 0;
 			scalingFactor = 1.0f;
