@@ -140,8 +140,8 @@ int main(int, char**)
 	#endif
 
 	// Set the resolution (16:9 to avoid black borders)
-	int frameWidth = 768;
-	int frameHeight = 450;
+	int frameWidth = 1280;
+	int frameHeight = 720;
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, frameWidth);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, frameHeight);
 
@@ -211,7 +211,7 @@ int main(int, char**)
 		// Strutz cvtColor( cam_img, rgb, CV_BGR2RGB); // Konvertierung BGR zu RGB
 
 		//Runterskalierung des Bildes für weniger Rechaufwand (Faktor 1/2)
-		resize(cam_img, rgb_scale, Size(), 0.5, 0.5);
+		//resize(cam_img, rgb_scale, Size(), 0.5, 0.5);
 
 		/* smoothing of images */
 		if (median_flag) /* can be toggled with key 'm'*/
@@ -314,7 +314,7 @@ int main(int, char**)
 				float progress = (float)decrement_counter / initialCounter; // normalize (1.0 to 0.0)
 
 				// Adjust speed for both increment and decrement based on progress
-				float effect_speed = (1 - progress) * effectSpeed; // This is used for both increment and decrement
+				float effect_speed = 1 + (1 - progress) * effectSpeed; // This is used for both increment and decrement
 
 				// Decrement counter, based on effect speed
 				decrement_counter -= (int)effect_speed;
@@ -338,12 +338,13 @@ int main(int, char**)
 			}
 		}
 
-		/********************************************************************************************/
-		/* show window with live video	*/		//Le-Wi: Funktionalitäten zum Schließen (x-Button)
 		if (!IsWindowVisible(cvHwnd))
 		{
 			break;
 		}
+
+		//resize(cam_img, rgb_scale, Size(), 2.0, 2.0);
+
 		imshow(windowGameOutput, cam_img); //Ausgabefenster darstellen		
 	}	// Ende der Endlos-Schleife
 
@@ -364,83 +365,6 @@ int main(int, char**)
 	exit(0);
 }
 
-
-//void createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int radius, int radiusMult, float scalingFactor, int marginWidth) {
-//	int rows = inputImage.rows;
-//	int cols = inputImage.cols;
-//
-//	// Create an output image initialized to black
-//	cv::Mat outputImage = cv::Mat::zeros(inputImage.size(), CV_8UC3);
-//
-//	for (int y = 0; y < rows; y++) {
-//		for (int x = 0; x < cols; x++) {
-//
-//			// Calculate the distance of the current pixel from the black hole center
-//			float distanceX = x - centreX;
-//			float distanceY = y - centreY;
-//			float distance = std::sqrt(distanceX * distanceX + distanceY * distanceY);
-//
-//			if (distance < radius) {
-//				// Compute the angle of the current pixel relative to the center
-//				float angle = std::atan2(distanceY, distanceX);
-//
-//				// Introduce rotational distortion based on the distance
-//				float rotationAmount = scalingFactor * (1.0f - distance / radius); // Decrease rotation with proximity
-//				angle += rotationAmount;
-//
-//				// Compute scaled distance for the black hole effect
-//				float scale = std::pow(distance / radius, 5);
-//				float distortedDistance = distance + scale * radiusMult;
-//
-//				// Convert polar coordinates back to Cartesian coordinates
-//				float sourceX = centreX + distortedDistance * std::cos(angle);
-//				float sourceY = centreY + distortedDistance * std::sin(angle);
-//
-//				// Ensure the source position is within bounds
-//				if (sourceX >= 0 && sourceX < cols && sourceY >= 0 && sourceY < rows) {
-//					// Get pointers to the rows of the input and output images
-//					uchar* outputPixel = outputImage.ptr<uchar>(y);
-//					const uchar* inputPixel = inputImage.ptr<uchar>(static_cast<int>(sourceY));
-//
-//					// Compute the source and destination pixel positions
-//					int sourceIdx = static_cast<int>(sourceX) * 3; // 3 channels (BGR)
-//					int destIdx = x * 3;
-//
-//					// Copy the pixel values from input to output
-//					outputPixel[destIdx + 0] = inputPixel[sourceIdx + 0]; // Blue
-//					outputPixel[destIdx + 1] = inputPixel[sourceIdx + 1]; // Green
-//					outputPixel[destIdx + 2] = inputPixel[sourceIdx + 2]; // Red
-//				}
-//			}
-//			else if (distance < radius + marginWidth)
-//			{
-//				// Calculate gradient factor (0 at radius, 1 at radius + marginWidth)
-//				float gradientFactor = (distance - radius) / marginWidth;
-//
-//				// Use a sigmoid-like easing function for smooth blending
-//				float easedFactor = 1.0f / (1.0f + std::exp(-10 * (gradientFactor - 0.5)));
-//
-//				// Darken the outer edge towards black
-//				float brightness = 1.0f - easedFactor; // Adjust brightness with easedFactor
-//
-//				// Interpolate color: dark edge to bright margin
-//				uchar blue = static_cast<uchar>(brightness * 3);
-//				uchar green = static_cast<uchar>(brightness * 107);
-//				uchar red = static_cast<uchar>(brightness * 252);
-//
-//				uchar* pixelPtr = outputImage.ptr<uchar>(y); // Get pointer to the start of the row
-//				pixelPtr[x * 3 + 0] = blue;  // Set the blue channel
-//				pixelPtr[x * 3 + 1] = green; // Set the green channel
-//				pixelPtr[x * 3 + 2] = red;   // Set the red channel
-//			}
-//		}
-//	}
-//
-//	// Copy the result back to the input image
-//	inputImage = outputImage.clone();
-//}
-
-
 bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int radius, int radiusMult, float scalingFactor, int marginWidth, int counter) {
 	int rows = inputImage.rows;
 	int cols = inputImage.cols;
@@ -453,7 +377,8 @@ bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 	float marginRadius = innerBlackCircleRadius + marginWidth;
 	float outerRadius = radius;
 
-	if (marginRadius / 2.0f > outerRadius)
+	// Stop animation, if black hole has sucked in the entire image
+	if (marginRadius / 1.25f > outerRadius)
 	{
 		return false;
 	}
@@ -477,6 +402,7 @@ bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 			{
 				// Calculate the gradient factor for both inward and outward darkening
 				float innerFactor = (distance - innerBlackCircleRadius) / marginWidth;
+				innerFactor /= 1.25f;
 				float outerFactor = (marginRadius - distance) / marginWidth;
 
 				// Ensure the factors are clamped between 0 and 1
