@@ -77,16 +77,18 @@ int main(int, char**)
 	bool fullscreen_flag = false; //Ist fullscreen aktivert oder nicht?
 	bool median_flag = false;
 	bool flip_flag = true;
+
+	// Variables for black hole effect
 	float scalingFactor = 1.0f;
-	float radiusMult = 1.0;
-	float effectSpeed = 1.0f;
-	int decrement_counter = 0;
-	int increment_counter = 0;
-	int initialCounter;
-	bool animation_flag = false;
-	bool start_animation = false;
-	bool frozen = false;
-	DemoState state; //Aktueller Zustand des Spiels
+	float effectSpeed = 1.2f; // scales the speed of the effect
+	int outer_circle_radius; // radius for outer circle
+	int black_hole_radius = 5;
+	int initial_margin_width = 10;
+	bool start_black_hole_effect = false;
+	bool freeze_black_hole_effect = false;
+	int start_value_for_outer_radius;
+
+	DemoState state;
 	#if defined _DEBUG || defined LOGGING
 	FILE* log = NULL;
 	log = fopen("log_debug.txt", "wt");
@@ -145,7 +147,7 @@ int main(int, char**)
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, frameWidth);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, frameHeight);
 
-	/* capture the image */
+	// capture image from webcam
 	cap >> cam_img;
 
 	/* get format of camera image	*/
@@ -245,8 +247,8 @@ int main(int, char**)
 		// Vollbildschirm ein- bzw. ausschalten
 		if (key == 'f')
 		{
-			frozen = !frozen;
-			if (frozen)
+			freeze_black_hole_effect = !freeze_black_hole_effect;
+			if (freeze_black_hole_effect)
 			{
 				PlaySound(NULL, NULL, 0); // cancel sound
 			}
@@ -275,7 +277,7 @@ int main(int, char**)
 		}
 		else if (key == 's')
 		{
-			start_animation = false;
+			start_black_hole_effect = false;
 			PlaySound(NULL, NULL, 0); // cancel sound
 		}
 
@@ -298,42 +300,46 @@ int main(int, char**)
 			}
 		}
 
+		// start black hole effect if mouse is clicked
 		if (click_left(mp, folder))
 		{
-			start_animation = true;
-			initialCounter = width / 2;
-			decrement_counter = initialCounter;
-			increment_counter = 0;
+			start_black_hole_effect = true;
+			start_value_for_outer_radius = width / 2;
+			outer_circle_radius = start_value_for_outer_radius;
+			black_hole_radius = 0;
 			scalingFactor = 1.0f;
 		}
 
-		if (start_animation)
+		if (start_black_hole_effect)
 		{
-			if (!frozen)
+			// Only apply visual effect if not frozen
+			if (!freeze_black_hole_effect)
 			{
-				float progress = (float)decrement_counter / initialCounter; // normalize (1.0 to 0.0)
+				// Calculate dynamic effect speed (getting faster when more time has passed)
+				float progress = (float)(black_hole_radius) / start_value_for_outer_radius; // normalize progress (1.0 to 0.0)
+				float scalingProgress = progress < 0.9f ? 0.1f : progress;
 
-				// Adjust speed for both increment and decrement based on progress
-				float effect_speed = 1 + (1 - progress) * effectSpeed; // This is used for both increment and decrement
+				float effect_speed = 1 + scalingProgress * effectSpeed; // This is used for both increment and decrement
 
 				// Decrement counter, based on effect speed
-				decrement_counter -= (int)effect_speed;
+				outer_circle_radius -= (int)effect_speed;
 
 				// Increment counter, using the same effect speed to maintain consistent rate
-				increment_counter += (int)effect_speed;
+				black_hole_radius += (int)effect_speed;
 
 				// make sure counter does not go below 0
-				if (decrement_counter < 0) decrement_counter = 0;
+				if (outer_circle_radius < 0) outer_circle_radius = 0;
 
-				scalingFactor += 0.025f; // increase the distortion
+				scalingFactor += (scalingProgress * 0.1f); // increase the distortion
 			}
 
-			bool continueAnimation = createBlackHoleEffect(cam_img, mp.mouse_pos.x, mp.mouse_pos.y, decrement_counter, radiusMult, scalingFactor, 10 + increment_counter, increment_counter / 15);
+			int currentMarginRadius = initial_margin_width + black_hole_radius;
+			bool continueAnimation = createBlackHoleEffect(cam_img, mp.mouse_pos.x, mp.mouse_pos.y, outer_circle_radius, scalingFactor, currentMarginRadius);
 
 			//end animation
 			if (continueAnimation == false)
 			{
-				start_animation = false;
+				start_black_hole_effect = false;
 				PlaySound(NULL, NULL, 0); // cancel sound
 			}
 		}
@@ -365,7 +371,7 @@ int main(int, char**)
 	exit(0);
 }
 
-bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int radius, int radiusMult, float scalingFactor, int marginWidth, int counter) {
+bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int radius, float scalingFactor, int currentMarginRadius) {
 	int rows = inputImage.rows;
 	int cols = inputImage.cols;
 
@@ -374,7 +380,7 @@ bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 
 	//float innerBlackCircleRadius = counter / 14.0f;
 	float innerBlackCircleRadius = 5;
-	float marginRadius = innerBlackCircleRadius + marginWidth;
+	float marginRadius = currentMarginRadius;
 	float outerRadius = radius;
 
 	// Stop animation, if black hole has sucked in the entire image
@@ -389,21 +395,21 @@ bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 			// Calculate the distance of the current pixel from the black hole center
 			float distanceX = x - centreX;
 			float distanceY = y - centreY;
-			float distance = std::sqrt(distanceX * distanceX + distanceY * distanceY);
+			float pixelDistanceToCenter = std::sqrt(distanceX * distanceX + distanceY * distanceY);
 
-			if (distance < innerBlackCircleRadius) {
+			if (pixelDistanceToCenter < innerBlackCircleRadius) {
 				// Inside the black hole: set the pixel to black
 				uchar* pixelPtr = outputImage.ptr<uchar>(y);
 				pixelPtr[x * 3 + 0] = 0;  // Blue
 				pixelPtr[x * 3 + 1] = 0;  // Green
 				pixelPtr[x * 3 + 2] = 0;  // Red
 			}
-			else if (distance < marginRadius)
+			else if (pixelDistanceToCenter < marginRadius)
 			{
 				// Calculate the gradient factor for both inward and outward darkening
-				float innerFactor = (distance - innerBlackCircleRadius) / marginWidth;
+				float innerFactor = (pixelDistanceToCenter - innerBlackCircleRadius) / currentMarginRadius;
 				innerFactor /= 1.25f;
-				float outerFactor = (marginRadius - distance) / marginWidth;
+				float outerFactor = (marginRadius - pixelDistanceToCenter) / currentMarginRadius;
 
 				// Ensure the factors are clamped between 0 and 1
 				innerFactor = max(0.0f, min(1.0f, innerFactor));
@@ -428,18 +434,18 @@ bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 				pixelPtr[x * 3 + 1] = green; // Set the green channel
 				pixelPtr[x * 3 + 2] = red;   // Set the red channel
 			}
-			else if (distance < outerRadius) {
+			else if (pixelDistanceToCenter < outerRadius) {
 				// Apply rotational distortion for the outer region
 				float angle = std::atan2(distanceY, distanceX);
 
 				// Introduce rotational distortion based on the distance
-				float normalizedDistance = (distance - marginRadius) / (outerRadius - marginRadius);
+				float normalizedDistance = (pixelDistanceToCenter - marginRadius) / (outerRadius - marginRadius);
 				float rotationAmount = scalingFactor * (1.0f - normalizedDistance); // Stronger near the black hole
-				angle -= rotationAmount; // Pixels are "sucked in" by reducing the angle
+				angle -= rotationAmount; // apply rotation to angle
 
 				// Compute distorted distance (pull pixels inward)
-				float scale = std::pow((1.0f - normalizedDistance), 5.0f); // Stronger inward pull near the black hole
-				float distortedDistance = distance - scale * radiusMult;
+				float distortionScale = std::pow((1.0f - normalizedDistance), 6.0f); // Stronger inward pull near the black hole
+				float distortedDistance = pixelDistanceToCenter - distortionScale;
 
 				// Ensure distortedDistance does not fall into the black or margin areas
 				if (distortedDistance < marginRadius) {
