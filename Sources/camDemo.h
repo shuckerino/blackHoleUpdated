@@ -88,4 +88,4 @@ struct MouseParams
     int evt;
 };
 
-void createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int radius, int radiusMult, float scalingFactor, int marginWidth);
+bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int radius, float scalingFactor, int currentMarginRadius);

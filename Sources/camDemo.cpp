@@ -77,15 +77,18 @@ int main(int, char**)
 	bool fullscreen_flag = false; //Ist fullscreen aktivert oder nicht?
 	bool median_flag = false;
 	bool flip_flag = true;
+
+	// Variables for black hole effect
 	float scalingFactor = 1.0f;
-	float radiusMult = 1.0;
-	float effectSpeed = 2.0f;
-	int counter = 0;
-	int initialCounter;
-	bool animation_flag = false;
-	bool start_animation = false;
-	bool frozen = false;
-	DemoState state; //Aktueller Zustand des Spiels
+	float effectSpeed = 1.2f; // scales the speed of the effect
+	int outer_circle_radius; // radius for outer circle
+	int black_hole_radius = 5;
+	int initial_margin_width = 10;
+	bool start_black_hole_effect = false;
+	bool freeze_black_hole_effect = false;
+	int start_value_for_outer_radius;
+
+	DemoState state;
 	#if defined _DEBUG || defined LOGGING
 	FILE* log = NULL;
 	log = fopen("log_debug.txt", "wt");
@@ -115,14 +118,14 @@ int main(int, char**)
 	else
 	{
 		/* some infos on console	*/
-		printf( "==> Program Control <==\n");
-		printf( "==                   ==\n");
-		printf( "* Start Screen\n");
-		printf( " - 'ESC' Stop the program \n");
-		printf( " - 'm'   Increase speed of animation\n");
-		printf( " - 'l'   Decrease speed of animation\n");
-		printf( " - 'f'   Freeze animation\n");
-		printf( " - 's'   Stop animation\n");
+		printf("==> Program Control <==\n");
+		printf("==                   ==\n");
+		printf("* Start Screen\n");
+		printf(" - 'ESC' Stop the program \n");
+		printf(" - 'm'   Increase speed of animation\n");
+		printf(" - 'l'   Decrease speed of animation\n");
+		printf(" - 'f'   Freeze animation\n");
+		printf(" - 's'   Stop animation\n");
 	}
 	{
 		HWND console = GetConsoleWindow();
@@ -139,12 +142,12 @@ int main(int, char**)
 	#endif
 
 	// Set the resolution (16:9 to avoid black borders)
-	int frameWidth = 768;
-	int frameHeight = 450;
+	int frameWidth = 854;
+	int frameHeight = 480;
 	cap.set(cv::CAP_PROP_FRAME_WIDTH, frameWidth);
 	cap.set(cv::CAP_PROP_FRAME_HEIGHT, frameHeight);
 
-	/* capture the image */
+	// capture image from webcam
 	cap >> cam_img;
 
 	/* get format of camera image	*/
@@ -158,7 +161,7 @@ int main(int, char**)
 	resizeWindow(windowGameOutput, width, height); //Start Auflösung der Kamera
 	HWND cvHwnd = (HWND)cvGetWindowHandle(windowGameOutput); //window-handle to detect window-states
 
-	srand((unsigned)time(NULL));//seeds the random number generator
+	srand((unsigned)time(NULL)); //seeds the random number generator
 
 	/* find folder for ressources	*/
 	{
@@ -181,23 +184,10 @@ int main(int, char**)
 	}
 
 	start_time = clock();
-
-
-	/* structure element for dilation of binary image */
-	//{
-	//	int strElRadius = 3;
-	//	int size = strElRadius * 2 + 1;
-	//	strElement = Mat( size, size, CV_8UC1, Scalar::all( 0)); 
-	//	//Einzeichnen des eigentlichen Strukturelements (weißer Kreis)
-	//	/* ( , Mittelpunkt, radius, weiß, thickness=gefüllt*/
-	//	circle( strElement, Point( strElRadius, strElRadius), strElRadius, Scalar( 255), -1);
-	//}
-
 	state = START_SCREEN;
 
 	// Setup zum Auswerten von Mausevents
 	setMouseCallback(windowGameOutput, mouse_event, (void*)&mp);
-
 
 	/*-------------------- main loop ---------------*/
 	while (state != DEMO_STOP)
@@ -223,7 +213,7 @@ int main(int, char**)
 		// Strutz cvtColor( cam_img, rgb, CV_BGR2RGB); // Konvertierung BGR zu RGB
 
 		//Runterskalierung des Bildes für weniger Rechaufwand (Faktor 1/2)
-		//resize(cam_img, rgb_scale, Size(), scale, scale);
+		//resize(cam_img, rgb_scale, Size(), 0.5, 0.5);
 
 		/* smoothing of images */
 		if (median_flag) /* can be toggled with key 'm'*/
@@ -257,12 +247,12 @@ int main(int, char**)
 		// Vollbildschirm ein- bzw. ausschalten
 		if (key == 'f')
 		{
-			frozen = !frozen;
-			if (frozen)
+			freeze_black_hole_effect = !freeze_black_hole_effect;
+			if (freeze_black_hole_effect)
 			{
 				PlaySound(NULL, NULL, 0); // cancel sound
 			}
-			else 
+			else
 			{
 				char path[512];
 				sprintf_s(path, "%s/black_hole.wav", folder);
@@ -287,7 +277,7 @@ int main(int, char**)
 		}
 		else if (key == 's')
 		{
-			start_animation = false;
+			start_black_hole_effect = false;
 			PlaySound(NULL, NULL, 0); // cancel sound
 		}
 
@@ -310,44 +300,55 @@ int main(int, char**)
 			}
 		}
 
+		// start black hole effect if mouse is clicked
 		if (click_left(mp, folder))
 		{
-			start_animation = true;
-			initialCounter = width / 2 + 50;
-			counter = initialCounter;
+			start_black_hole_effect = true;
+			start_value_for_outer_radius = width / 2;
+			outer_circle_radius = start_value_for_outer_radius;
+			black_hole_radius = 0;
 			scalingFactor = 1.0f;
 		}
 
-		if (start_animation)
+		if (start_black_hole_effect)
 		{
-			if (!frozen)
+			// Only apply visual effect if not frozen
+			if (!freeze_black_hole_effect)
 			{
-				float progress = (float)counter / initialCounter; // normalize (1.0 to 0.0)
-				float decrement = 1 + (1 - progress) * effectSpeed; // adjust to control the speed of the effect
-				counter -= (int)decrement;
+				// Calculate dynamic effect speed (getting faster when more time has passed)
+				float progress = (float)(black_hole_radius) / start_value_for_outer_radius; // normalize progress (1.0 to 0.0)
+				float scalingProgress = progress < 0.9f ? 0.1f : progress;
+
+				float effect_speed = 1 + scalingProgress * effectSpeed; // This is used for both increment and decrement
+
+				// Decrement counter, based on effect speed
+				outer_circle_radius -= (int)effect_speed;
+
+				// Increment counter, using the same effect speed to maintain consistent rate
+				black_hole_radius += (int)effect_speed;
 
 				// make sure counter does not go below 0
-				if (counter < 0) counter = 0;
+				if (outer_circle_radius < 0) outer_circle_radius = 0;
 
-				scalingFactor += 0.025f; // increase the distortion
+				scalingFactor += (scalingProgress * 0.1f); // increase the distortion
 			}
 
-			createBlackHoleEffect(cam_img, mp.mouse_pos.x, mp.mouse_pos.y, counter, radiusMult, scalingFactor, 10);
+			int currentMarginRadius = initial_margin_width + black_hole_radius;
+			bool continueAnimation = createBlackHoleEffect(cam_img, mp.mouse_pos.x, mp.mouse_pos.y, outer_circle_radius, scalingFactor, currentMarginRadius);
 
-			// end animation
-			if (counter == 0)
+			//end animation
+			if (continueAnimation == false)
 			{
-				start_animation = false;
+				start_black_hole_effect = false;
 				PlaySound(NULL, NULL, 0); // cancel sound
 			}
 		}
 
-		/********************************************************************************************/
-		/* show window with live video	*/		//Le-Wi: Funktionalitäten zum Schließen (x-Button)
 		if (!IsWindowVisible(cvHwnd))
 		{
 			break;
 		}
+
 		imshow(windowGameOutput, cam_img); //Ausgabefenster darstellen		
 	}	// Ende der Endlos-Schleife
 
@@ -368,32 +369,86 @@ int main(int, char**)
 	exit(0);
 }
 
-
-void createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int radius, int radiusMult, float scalingFactor, int marginWidth) {
+bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int radius, float scalingFactor, int currentMarginRadius) {
 	int rows = inputImage.rows;
 	int cols = inputImage.cols;
 
 	// Create an output image initialized to black
 	cv::Mat outputImage = cv::Mat::zeros(inputImage.size(), CV_8UC3);
 
+	//float innerBlackCircleRadius = counter / 14.0f;
+	float innerBlackCircleRadius = 5;
+	float marginRadius = currentMarginRadius;
+	float outerRadius = radius;
+
+	// Stop animation, if black hole has sucked in the entire image
+	if (marginRadius / 1.25f > outerRadius)
+	{
+		return false;
+	}
+
 	for (int y = 0; y < rows; y++) {
 		for (int x = 0; x < cols; x++) {
+
 			// Calculate the distance of the current pixel from the black hole center
 			float distanceX = x - centreX;
 			float distanceY = y - centreY;
-			float distance = std::sqrt(distanceX * distanceX + distanceY * distanceY);
+			float pixelDistanceToCenter = std::sqrt(distanceX * distanceX + distanceY * distanceY);
 
-			if (distance < radius) {
-				// Compute the angle of the current pixel relative to the center
+			if (pixelDistanceToCenter < innerBlackCircleRadius) {
+				// Inside the black hole: set the pixel to black
+				uchar* pixelPtr = outputImage.ptr<uchar>(y);
+				pixelPtr[x * 3 + 0] = 0;  // Blue
+				pixelPtr[x * 3 + 1] = 0;  // Green
+				pixelPtr[x * 3 + 2] = 0;  // Red
+			}
+			else if (pixelDistanceToCenter < marginRadius)
+			{
+				// Calculate the gradient factor for both inward and outward darkening
+				float innerFactor = (pixelDistanceToCenter - innerBlackCircleRadius) / currentMarginRadius;
+				innerFactor /= 1.25f;
+				float outerFactor = (marginRadius - pixelDistanceToCenter) / currentMarginRadius;
+
+				// Ensure the factors are clamped between 0 and 1
+				innerFactor = max(0.0f, min(1.0f, innerFactor));
+				outerFactor = max(0.0f, min(1.0f, outerFactor));
+
+				// Combine the two factors to create a symmetric gradient effect
+				float gradientFactor = max(innerFactor, outerFactor);
+
+				// Use a sigmoid-like easing function for smooth blending
+				float easedFactor = 1.0f / (1.0f + std::exp(-8 * (gradientFactor - 0.5)));
+
+				// Darken the color based on the eased factor
+				float brightness = 1.0f - easedFactor;
+
+				// Interpolate color: dark edge to bright margin
+				uchar blue = static_cast<uchar>(brightness * 3);
+				uchar green = static_cast<uchar>(brightness * 107);
+				uchar red = static_cast<uchar>(brightness * 252);
+
+				uchar* pixelPtr = outputImage.ptr<uchar>(y); // Get pointer to the start of the row
+				pixelPtr[x * 3 + 0] = blue;  // Set the blue channel
+				pixelPtr[x * 3 + 1] = green; // Set the green channel
+				pixelPtr[x * 3 + 2] = red;   // Set the red channel
+			}
+			else if (pixelDistanceToCenter < outerRadius) {
+				// Apply rotational distortion for the outer region
 				float angle = std::atan2(distanceY, distanceX);
 
 				// Introduce rotational distortion based on the distance
-				float rotationAmount = scalingFactor * (1.0f - distance / radius); // Decrease rotation with proximity
-				angle += rotationAmount;
+				float normalizedDistance = (pixelDistanceToCenter - marginRadius) / (outerRadius - marginRadius);
+				float rotationAmount = scalingFactor * (1.0f - normalizedDistance); // Stronger near the black hole
+				angle -= rotationAmount; // apply rotation to angle
 
-				// Compute scaled distance for the black hole effect
-				float scale = std::pow(distance / radius, 5);
-				float distortedDistance = distance + scale * radiusMult;
+				// Compute distorted distance (pull pixels inward)
+				float distortionScale = std::pow((1.0f - normalizedDistance), 6.0f); // Stronger inward pull near the black hole
+				float distortedDistance = pixelDistanceToCenter - distortionScale;
+
+				// Ensure distortedDistance does not fall into the black or margin areas
+				if (distortedDistance < marginRadius) {
+					distortedDistance = marginRadius;
+				}
 
 				// Convert polar coordinates back to Cartesian coordinates
 				float sourceX = centreX + distortedDistance * std::cos(angle);
@@ -414,31 +469,18 @@ void createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 					outputPixel[destIdx + 1] = inputPixel[sourceIdx + 1]; // Green
 					outputPixel[destIdx + 2] = inputPixel[sourceIdx + 2]; // Red
 				}
-			}
-			else if (distance < radius + marginWidth)
-			{
-				// Calculate gradient factor (0 at radius, 1 at radius + marginWidth)
-				float gradientFactor = (distance - radius) / marginWidth;
-
-				// Use a sigmoid-like easing function for smooth blending
-				float easedFactor = 1.0f / (1.0f + std::exp(-10 * (gradientFactor - 0.5)));
-
-				// Darken the outer edge towards black
-				float brightness = easedFactor; // Adjust brightness with easedFactor
-
-				// Interpolate color: dark edge to bright margin
-				uchar blue = static_cast<uchar>(brightness * 3);
-				uchar green = static_cast<uchar>(brightness * 107);
-				uchar red = static_cast<uchar>(brightness * 252);
-
-				uchar* pixelPtr = outputImage.ptr<uchar>(y); // Get pointer to the start of the row
-				pixelPtr[x * 3 + 0] = blue;  // Set the blue channel
-				pixelPtr[x * 3 + 1] = green; // Set the green channel
-				pixelPtr[x * 3 + 2] = red;   // Set the red channel
+				// Else, leave the pixel black (default initialization of outputImage)
 			}
 		}
 	}
 
 	// Copy the result back to the input image
 	inputImage = outputImage.clone();
+	return true;
 }
+
+
+
+
+
+
