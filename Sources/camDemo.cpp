@@ -79,7 +79,7 @@ int main(int, char**)
 	bool flip_flag = true;
 	float scalingFactor = 1.0f;
 	float radiusMult = 1.0;
-	float effectSpeed = 2.0f;
+	float effectSpeed = 1.5f;
 	int decrement_counter = 0;
 	int increment_counter = 0;
 	int initialCounter;
@@ -159,7 +159,7 @@ int main(int, char**)
 	resizeWindow(windowGameOutput, width, height); //Start Auflösung der Kamera
 	HWND cvHwnd = (HWND)cvGetWindowHandle(windowGameOutput); //window-handle to detect window-states
 
-	srand((unsigned)time(NULL));//seeds the random number generator
+	srand((unsigned)time(NULL)); //seeds the random number generator
 
 	/* find folder for ressources	*/
 	{
@@ -182,23 +182,10 @@ int main(int, char**)
 	}
 
 	start_time = clock();
-
-
-	/* structure element for dilation of binary image */
-	//{
-	//	int strElRadius = 3;
-	//	int size = strElRadius * 2 + 1;
-	//	strElement = Mat( size, size, CV_8UC1, Scalar::all( 0)); 
-	//	//Einzeichnen des eigentlichen Strukturelements (weißer Kreis)
-	//	/* ( , Mittelpunkt, radius, weiß, thickness=gefüllt*/
-	//	circle( strElement, Point( strElRadius, strElRadius), strElRadius, Scalar( 255), -1);
-	//}
-
 	state = START_SCREEN;
 
 	// Setup zum Auswerten von Mausevents
 	setMouseCallback(windowGameOutput, mouse_event, (void*)&mp);
-
 
 	/*-------------------- main loop ---------------*/
 	while (state != DEMO_STOP)
@@ -224,7 +211,7 @@ int main(int, char**)
 		// Strutz cvtColor( cam_img, rgb, CV_BGR2RGB); // Konvertierung BGR zu RGB
 
 		//Runterskalierung des Bildes für weniger Rechaufwand (Faktor 1/2)
-		//resize(cam_img, rgb_scale, Size(), scale, scale);
+		resize(cam_img, rgb_scale, Size(), 0.5, 0.5);
 
 		/* smoothing of images */
 		if (median_flag) /* can be toggled with key 'm'*/
@@ -327,13 +314,13 @@ int main(int, char**)
 				float progress = (float)decrement_counter / initialCounter; // normalize (1.0 to 0.0)
 
 				// Adjust speed for both increment and decrement based on progress
-				float effect_speed = 1 + (1 - progress) * effectSpeed; // This is used for both increment and decrement
+				float effect_speed = (1 - progress) * effectSpeed; // This is used for both increment and decrement
 
 				// Decrement counter, based on effect speed
 				decrement_counter -= (int)effect_speed;
 
 				// Increment counter, using the same effect speed to maintain consistent rate
-				increment_counter += (int)effect_speed + 2;
+				increment_counter += (int)effect_speed;
 
 				// make sure counter does not go below 0
 				if (decrement_counter < 0) decrement_counter = 0;
@@ -341,15 +328,10 @@ int main(int, char**)
 				scalingFactor += 0.025f; // increase the distortion
 			}
 
-			bool continueAnimation = createBlackHoleEffect(cam_img, mp.mouse_pos.x, mp.mouse_pos.y, decrement_counter, radiusMult, scalingFactor, 40, increment_counter);
+			bool continueAnimation = createBlackHoleEffect(cam_img, mp.mouse_pos.x, mp.mouse_pos.y, decrement_counter, radiusMult, scalingFactor, 10 + increment_counter, increment_counter / 15);
 
-			// end animation
-			//if (continueAnimation == false)
-			//{
-			//	start_animation = false;
-			//	PlaySound(NULL, NULL, 0); // cancel sound
-			//}
-			if (increment_counter > width * 1.5)
+			//end animation
+			if (continueAnimation == false)
 			{
 				start_animation = false;
 				PlaySound(NULL, NULL, 0); // cancel sound
@@ -466,14 +448,15 @@ bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 	// Create an output image initialized to black
 	cv::Mat outputImage = cv::Mat::zeros(inputImage.size(), CV_8UC3);
 
-	float innerBlackCircleRadius = counter / 14.0f;
+	//float innerBlackCircleRadius = counter / 14.0f;
+	float innerBlackCircleRadius = 5;
 	float marginRadius = innerBlackCircleRadius + marginWidth;
 	float outerRadius = radius;
 
-	//if (marginRadius > outerRadius)
-	//{
-	//	return false;
-	//}
+	if (marginRadius / 2.0f > outerRadius)
+	{
+		return false;
+	}
 
 	for (int y = 0; y < rows; y++) {
 		for (int x = 0; x < cols; x++) {
@@ -492,14 +475,22 @@ bool createBlackHoleEffect(cv::Mat& inputImage, int centreX, int centreY, int ra
 			}
 			else if (distance < marginRadius)
 			{
-				// Calculate gradient factor (0 at radius, 1 at radius + marginWidth)
-				float gradientFactor = (distance - innerBlackCircleRadius) / marginWidth;
+				// Calculate the gradient factor for both inward and outward darkening
+				float innerFactor = (distance - innerBlackCircleRadius) / marginWidth;
+				float outerFactor = (marginRadius - distance) / marginWidth;
+
+				// Ensure the factors are clamped between 0 and 1
+				innerFactor = max(0.0f, min(1.0f, innerFactor));
+				outerFactor = max(0.0f, min(1.0f, outerFactor));
+
+				// Combine the two factors to create a symmetric gradient effect
+				float gradientFactor = max(innerFactor, outerFactor);
 
 				// Use a sigmoid-like easing function for smooth blending
-				float easedFactor = 1.0f / (1.0f + std::exp(-10 * (gradientFactor - 0.5)));
+				float easedFactor = 1.0f / (1.0f + std::exp(-8 * (gradientFactor - 0.5)));
 
-				// Darken the outer edge towards black
-				float brightness = 1.0f - easedFactor; // Adjust brightness with easedFactor
+				// Darken the color based on the eased factor
+				float brightness = 1.0f - easedFactor;
 
 				// Interpolate color: dark edge to bright margin
 				uchar blue = static_cast<uchar>(brightness * 3);
