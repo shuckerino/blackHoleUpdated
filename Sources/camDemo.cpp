@@ -349,8 +349,6 @@ int main(int, char**)
 			break;
 		}
 
-		//resize(cam_img, rgb_scale, Size(), 2.0, 2.0);
-
 		imshow(windowGameOutput, cam_img); //Ausgabefenster darstellen		
 	}	// Ende der Endlos-Schleife
 
